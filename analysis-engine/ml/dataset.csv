@@ -1,0 +1,3 @@
+total_events,failed_logins,successful_logins,invalid_users,session_opened,session_closed,unique_ips,failed_login_ratio,success_ratio,privilege_escalation_count,persistence_count,log_tampering_count
+3,2,1,0,0,0,2,0.6666666666666666,0.3333333333333333,0,0,0
+3,2,1,0,0,0,2,0.6666666666666666,0.3333333333333333,0,0,0
