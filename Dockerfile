@@ -35,4 +35,6 @@ RUN npm run build
 
 ENV NODE_ENV=production
 
+RUN mkdir -p /app/uploads
+
 CMD ["npm", "start"]
