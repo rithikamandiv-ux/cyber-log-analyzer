@@ -1,18 +1,74 @@
 import { spawn } from "child_process";
 import path from "path";
 
-interface ParsedLog {
+export interface ParsedLog {
+    timestamp: string;
+    source_ip: string;
+    event_type: string;
+    severity: string;
+    username?: string | null;
+    raw_log?: string;
     [key: string]: unknown;
 }
 
-interface ParsedAlert {
+export interface ParsedAlert {
+    alert_type: string;
+    severity: string;
+    description: string;
+    source_ip?: string | null;
     [key: string]: unknown;
 }
 
-interface ParseAuthLogResult {
+export interface ParseAuthLogResult {
     logs: ParsedLog[];
     alerts: ParsedAlert[];
 }
+
+const isParsedLog = (value: unknown): value is ParsedLog => {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const log = value as Record<string, unknown>;
+
+    return (
+        typeof log.timestamp === "string" &&
+        typeof log.source_ip === "string" &&
+        typeof log.event_type === "string" &&
+        typeof log.severity === "string"
+    );
+};
+
+const isParsedAlert = (value: unknown): value is ParsedAlert => {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const alert = value as Record<string, unknown>;
+
+    return (
+        typeof alert.alert_type === "string" &&
+        typeof alert.severity === "string" &&
+        typeof alert.description === "string"
+    );
+};
+
+const isParseAuthLogResult = (
+    value: unknown
+): value is ParseAuthLogResult => {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const result = value as Record<string, unknown>;
+
+    return (
+        Array.isArray(result.logs) &&
+        result.logs.every(isParsedLog) &&
+        Array.isArray(result.alerts) &&
+        result.alerts.every(isParsedAlert)
+    );
+};
 
 export const parseAuthLog = (
     filePath: string
@@ -34,6 +90,14 @@ export const parseAuthLog = (
 
         let stdout = "";
         let stderr = "";
+        let settled = false;
+
+        const rejectOnce = (error: Error): void => {
+            if (!settled) {
+                settled = true;
+                reject(error);
+            }
+        };
 
         python.stdout.on("data", (data: Buffer) => {
             stdout += data.toString();
@@ -44,14 +108,18 @@ export const parseAuthLog = (
         });
 
         python.on("error", (error) => {
-            reject(
+            rejectOnce(
                 new Error(`Unable to start Python parser: ${error.message}`)
             );
         });
 
         python.on("close", (code) => {
+            if (settled) {
+                return;
+            }
+
             if (code !== 0) {
-                reject(
+                rejectOnce(
                     new Error(
                         `Python parser failed with exit code ${code}: ${stderr.trim()}`
                     )
@@ -60,10 +128,10 @@ export const parseAuthLog = (
             }
 
             try {
-                const parsed = JSON.parse(stdout) as ParseAuthLogResult;
+                const parsed: unknown = JSON.parse(stdout);
 
-                if (!Array.isArray(parsed.logs) || !Array.isArray(parsed.alerts)) {
-                    reject(
+                if (!isParseAuthLogResult(parsed)) {
+                    rejectOnce(
                         new Error(
                             "Python parser returned an invalid response structure."
                         )
@@ -71,12 +139,13 @@ export const parseAuthLog = (
                     return;
                 }
 
+                settled = true;
                 resolve(parsed);
             } catch (error: unknown) {
                 const message =
                     error instanceof Error ? error.message : String(error);
 
-                reject(
+                rejectOnce(
                     new Error(
                         `Invalid JSON returned by Python parser: ${message}. ` +
                         `Parser stderr: ${stderr.trim()}`
