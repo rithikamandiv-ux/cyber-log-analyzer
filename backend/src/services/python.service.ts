@@ -3,7 +3,7 @@ import path from "path";
 
 export interface ParsedLog {
     timestamp: string;
-    source_ip: string;
+    source_ip: string | null;
     event_type: string;
     severity: string;
     username?: string | null;
@@ -33,7 +33,7 @@ const isParsedLog = (value: unknown): value is ParsedLog => {
 
     return (
         typeof log.timestamp === "string" &&
-        typeof log.source_ip === "string" &&
+        (log.source_ip === null || typeof log.source_ip === "string") &&
         typeof log.event_type === "string" &&
         typeof log.severity === "string"
     );
