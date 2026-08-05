@@ -32,9 +32,9 @@ AUTH_LOG_PATTERN = re.compile(
 )
 
 
-def extract_ip(message: str) -> Optional[str]:
+def extract_ip(message: str) -> str:
     ip_match = re.search(r"from\s+(\d+\.\d+\.\d+\.\d+)", message)
-    return ip_match.group(1) if ip_match else None
+    return ip_match.group(1) if ip_match else ""
 
 
 def parse_line(line: str) -> Optional[Dict]:
@@ -74,7 +74,7 @@ def parse_line(line: str) -> Optional[Dict]:
     return {
     "timestamp": timestamp,
     "source_ip": extract_ip(message),
-    "dest_ip": None,
+    "dest_ip": "",
     "event_type": event_type,
     "message": message,
     "severity": severity,
