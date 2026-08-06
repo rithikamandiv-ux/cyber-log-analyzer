@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 
@@ -22,60 +22,72 @@ export const StatCard = ({
   delay = 0,
 }: StatCardProps) => {
   const [displayValue, setDisplayValue] = useState(0);
-  const hasAnimated = useRef(false);
 
   useEffect(() => {
-    if (hasAnimated.current) return;
-    hasAnimated.current = true;
+    let animationFrameId: number | undefined;
 
-    const duration = 1200;
-    const startTime = Date.now();
+    const timerId = window.setTimeout(() => {
+      const duration = 1200;
+      const startTime = performance.now();
 
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      // Ease out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(Math.floor(eased * value));
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
 
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        setDisplayValue(value);
-      }
-    };
+        const easedProgress = 1 - Math.pow(1 - progress, 3);
 
-    const timer = setTimeout(() => {
-      requestAnimationFrame(animate);
+        setDisplayValue(Math.floor(easedProgress * value));
+
+        if (progress < 1) {
+          animationFrameId = window.requestAnimationFrame(animate);
+        } else {
+          setDisplayValue(value);
+        }
+      };
+
+      animationFrameId = window.requestAnimationFrame(animate);
     }, delay);
 
-    return () => clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timerId);
+
+      if (animationFrameId !== undefined) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+    };
   }, [value, delay]);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay: delay / 1000, ease: 'easeOut' }}
-      className="bg-card border border-border card-glow relative overflow-hidden group"
+      transition={{
+        duration: 0.25,
+        delay: delay / 1000,
+        ease: 'easeOut',
+      }}
+      className="w-full min-w-0 max-w-full h-auto bg-card border border-border card-glow relative overflow-hidden group p-5"
       style={{
         borderRadius: 'var(--radius-card)',
-        padding: 'var(--space-6)',
-        minWidth: 240,
       }}
     >
-      {/* Accent top line */}
       <div
         className="absolute top-0 left-0 right-0 h-1"
-        style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }}
+        style={{
+          background: `linear-gradient(90deg, ${accentColor}, transparent)`,
+        }}
       />
 
-      {/* Icon + Label row */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-4">
         <Icon
           className="shrink-0"
-          style={{ width: 20, height: 20, color: 'var(--color-primary-active)' }}
+          style={{
+            width: 20,
+            height: 20,
+            color: 'var(--color-primary-active)',
+          }}
         />
+
         <p
           className="font-medium"
           style={{
@@ -90,17 +102,18 @@ export const StatCard = ({
         </p>
       </div>
 
-      {/* Value */}
       <p
         className="font-display"
         style={{
           fontSize: 40,
           fontWeight: 700,
-          lineHeight: 1.2,
+          lineHeight: 1.05,
           color: 'var(--color-text-primary)',
         }}
       >
-        {prefix}{displayValue.toLocaleString()}{suffix}
+        {prefix}
+        {displayValue.toLocaleString()}
+        {suffix}
       </p>
     </motion.div>
   );
